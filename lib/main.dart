@@ -1,111 +1,279 @@
+import 'dart:io';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_neumorphic/flutter_neumorphic.dart';
+import 'package:itte/repository/dataRepository.dart';
+import 'package:sliding_up_panel/sliding_up_panel.dart';
+import 'package:device_info/device_info.dart';
 
-void main() => runApp(MyApp());
+import 'models/response.dart';
+import 'pie.dart';
 
-class MyApp extends StatelessWidget {
-  // This widget is the root of your application.
+void main() => runApp(App());
+
+class App extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Is this the end?',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // Try running your application with "flutter run". You'll see the
-        // application has a blue toolbar. Then, without quitting the app, try
-        // changing the primarySwatch below to Colors.green and then invoke
-        // "hot reload" (press "r" in the console where you ran "flutter run",
-        // or simply save your changes to "hot reload" in a Flutter IDE).
-        // Notice that the counter didn't reset back to zero; the application
-        // is not restarted.
-        primarySwatch: Colors.blue,
+        fontFamily: 'Montserrat',
       ),
-      home: MyHomePage(title: 'Is this the end?'),
+      home: NeumorphicTheme(
+          usedTheme: UsedTheme.LIGHT,
+          theme: NeumorphicThemeData(
+            baseColor: Color(0xFFFFFFFF),
+            intensity: 1.0,
+            lightSource: LightSource.topLeft,
+            depth: 6,
+          ),
+          child: MyHomePage()),
     );
   }
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  _MyHomePageState createState() => _MyHomePageState();
+  @protected
+  MyHomePageState createState() => MyHomePageState();
 }
 
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
+class MyHomePageState extends State<MyHomePage> {
+  String comment = '';
+  bool toRender = false;
+  bool selectedValue;
+  final DataRepository repository = DataRepository();
+  double yes = 1;
+  double no = 1;
 
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
+  @override
+  void initState() {
+    _getUniqueId().then((id) {
+      repository
+          .getMyResponse(id)
+          .listen((data) => data.documents.forEach((doc) {
+                setState(() {
+                  selectedValue = doc["value"];
+                });
+              }));
+      setState(() {
+        toRender = true;
+      });
     });
+    repository.counts().then((DocumentSnapshot ds) {
+      yes = ds['yes'].toDouble();
+      no = ds['no'].toDouble();
+    });
+    super.initState();
+  }
+
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: NeumorphicTheme.baseColor(context),
+      body: SlidingUpPanel(
+        minHeight: selectedValue == null ? 0 : 60,
+        maxHeight: MediaQuery.of(context).size.height / 2,
+        parallaxEnabled: true,
+        parallaxOffset: 0.4,
+        header: Container(
+          width: MediaQuery.of(context).size.width,
+          height: 60,
+          color: Color(0xFF898989).withOpacity(0.0),
+          child: Center(
+              child: Text('Last responses'.toUpperCase(),
+                  style: TextStyle(
+                    color: Color(0xFF898989),
+                    fontWeight: FontWeight.w600,
+                  ))),
+        ),
+        panel: Container(
+          margin: const EdgeInsets.only(top: 60.0),
+          child: Center(
+            child: StreamBuilder<QuerySnapshot>(
+                stream: repository.getStream(),
+                builder: (context, snapshot) {
+                  if (!snapshot.hasData) return LinearProgressIndicator();
+                  return _buildList(context, snapshot.data.documents);
+                }),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: <Widget>[
+              Container(
+                  margin: const EdgeInsets.only(bottom: 20.0),
+                  child: Text(
+                    'Is this the end?',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF898989),
+                      fontSize: 24,
+                    ),
+                  )),
+              !toRender
+                  ? Container()
+                  : selectedValue != null
+                      ? NeumorphicPie(
+                          dataMap: <String, double>{'yes': yes, 'no': no},
+                          selectedValue: selectedValue,
+                        )
+                      : _TextField(
+                          placeholder: "Your comment",
+                          onChanged: (val) {
+                            comment = val;
+                          },
+                        ),
+              !toRender
+                  ? Container()
+                  : selectedValue != null
+                      ? Container()
+                      : Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: <Widget>[
+                            NeumorphicButton(
+                                margin: EdgeInsets.only(top: 20, right: 10),
+                                onClick: () {
+                                  _addResponse(true);
+                                },
+                                style: NeumorphicStyle(
+                                    shape: NeumorphicShape.flat),
+                                boxShape: NeumorphicBoxShape.roundRect(
+                                    BorderRadius.circular(8)),
+                                padding: const EdgeInsets.all(12.0),
+                                child: Text("Yes, it is",
+                                    style: TextStyle(
+                                        color: Color(0xFFDC5C5C),
+                                        fontWeight: FontWeight.w600))),
+                            NeumorphicButton(
+                                margin: EdgeInsets.only(top: 20, left: 10),
+                                onClick: () {
+                                  _addResponse(false);
+                                },
+                                style: NeumorphicStyle(
+                                  // color: Color(0xFFDC5C5C),
+                                  shape: NeumorphicShape.flat,
+                                ),
+                                boxShape: NeumorphicBoxShape.roundRect(
+                                    BorderRadius.circular(8)),
+                                padding: const EdgeInsets.all(12.0),
+                                child: Text("No, it's not",
+                                    style: TextStyle(
+                                        color: Color(0xFF5AB359),
+                                        fontWeight: FontWeight.w600))),
+                          ],
+                        ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _addResponse(bool value) async {
+    final id = await _getUniqueId();
+    Response val = Response(id, value, comment);
+    repository.addResponse(val);
+    setState(() {
+      comment = '';
+    });
+  }
+
+  Future<String> _getUniqueId() async {
+    final DeviceInfoPlugin deviceInfoPlugin = new DeviceInfoPlugin();
+    if (Platform.isAndroid) {
+      var build = await deviceInfoPlugin.androidInfo;
+      return build.androidId;
+    } else if (Platform.isIOS) {
+      var data = await deviceInfoPlugin.iosInfo;
+      return data.identifierForVendor;
+    }
+    return deviceInfoPlugin.toString();
+  }
+
+  Widget _buildList(BuildContext context, List<DocumentSnapshot> snapshot) {
+    return ListView(
+      padding: const EdgeInsets.only(top: 0.0),
+      children: snapshot.map((data) => _buildListItem(context, data)).toList(),
+    );
+  }
+
+  Widget _buildListItem(BuildContext context, DocumentSnapshot snapshot) {
+    final res = Response.fromSnapshot(snapshot);
+    if (res == null || res.comment == null) {
+      return Container();
+    }
+    return Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: InkWell(
+          child: Row(
+            children: <Widget>[
+              Expanded(
+                  child: Text(res.comment == null ? "" : res.comment,
+                      style: TextStyle(
+                          fontSize: 18.0, fontWeight: FontWeight.w500))),
+              _getResponseIcon(res.value),
+            ],
+          ),
+          highlightColor: Colors.green,
+          splashColor: Colors.blue,
+        ));
+  }
+
+  Widget _getResponseIcon(bool value) {
+    if (value) {
+      return IconButton(
+        icon: Icon(Icons.pets),
+        onPressed: () {},
+      );
+    } else {
+      return IconButton(
+        icon: Icon(Icons.pets),
+        onPressed: () {},
+      );
+    }
+  }
+}
+
+class _TextField extends StatefulWidget {
+  final String placeholder;
+
+  final ValueChanged<String> onChanged;
+
+  _TextField({@required this.placeholder, this.onChanged});
+
+  @override
+  __TextFieldState createState() => __TextFieldState();
+}
+
+class __TextFieldState extends State<_TextField> {
+  TextEditingController _controller;
+
+  @override
+  void initState() {
+    _controller = TextEditingController(text: '');
+    super.initState();
   }
 
   @override
   Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: Icon(Icons.add),
-      ), // This trailing comma makes auto-formatting nicer for build methods.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: <Widget>[
+        Neumorphic(
+          margin: EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+          boxShape: NeumorphicBoxShape.stadium(),
+          style: NeumorphicStyle(
+              depth: NeumorphicTheme.embossDepth(context) / 3.0),
+          padding: EdgeInsets.symmetric(vertical: 0, horizontal: 20),
+          child: TextField(
+            onChanged: this.widget.onChanged,
+            controller: _controller,
+            decoration:
+                InputDecoration.collapsed(hintText: this.widget.placeholder),
+          ),
+        )
+      ],
     );
   }
 }
