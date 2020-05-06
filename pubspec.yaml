@@ -18,6 +18,7 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  flutter_launcher_icons: ^0.7.2
 
 flutter:
   uses-material-design: true
@@ -30,3 +31,8 @@ flutter:
           weight: 500
         - asset: assets/fonts/Montserrat-SemiBold.ttf
           weight: 600
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "assets/images/favicon.png"

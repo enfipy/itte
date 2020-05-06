@@ -7,6 +7,7 @@ import 'package:itte/repository/dataRepository.dart';
 import 'package:sliding_up_panel/sliding_up_panel.dart';
 import 'package:device_info/device_info.dart';
 
+import 'constants.dart';
 import 'models/response.dart';
 import 'pie.dart';
 
@@ -42,27 +43,30 @@ class MyHomePageState extends State<MyHomePage> {
   String comment = '';
   bool toRender = false;
   bool selectedValue;
-  final DataRepository repository = DataRepository();
   double yes = 1;
   double no = 1;
+  final DataRepository repository = DataRepository();
 
   @override
   void initState() {
-    _getUniqueId().then((id) {
-      repository
-          .getMyResponse(id)
-          .listen((data) => data.documents.forEach((doc) {
+    _getUniqueId().then((id) async {
+      repository.getMyResponse(id).listen(
+          (data) => data.documents.forEach((doc) {
                 setState(() {
                   selectedValue = doc["value"];
                 });
               }));
-      setState(() {
-        toRender = true;
+      Future.delayed(Duration(seconds: 1)).then((_) {
+        setState(() {
+          toRender = true;
+        });
       });
     });
-    repository.counts().then((DocumentSnapshot ds) {
-      yes = ds['yes'].toDouble();
-      no = ds['no'].toDouble();
+    repository.counts().listen((DocumentSnapshot ds) {
+      setState(() {
+        yes = ds['yes'].toDouble();
+        no = ds['no'].toDouble();
+      });
     });
     super.initState();
   }
@@ -78,11 +82,11 @@ class MyHomePageState extends State<MyHomePage> {
         header: Container(
           width: MediaQuery.of(context).size.width,
           height: 60,
-          color: Color(0xFF898989).withOpacity(0.0),
+          color: textColor.withOpacity(0.0),
           child: Center(
               child: Text('Last responses'.toUpperCase(),
                   style: TextStyle(
-                    color: Color(0xFF898989),
+                    color: textColor,
                     fontWeight: FontWeight.w600,
                   ))),
         ),
@@ -107,7 +111,7 @@ class MyHomePageState extends State<MyHomePage> {
                     'Is this the end?',
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: Color(0xFF898989),
+                      color: textColor,
                       fontSize: 24,
                     ),
                   )),
@@ -115,11 +119,11 @@ class MyHomePageState extends State<MyHomePage> {
                   ? Container()
                   : selectedValue != null
                       ? NeumorphicPie(
-                          dataMap: <String, double>{'yes': yes, 'no': no},
+                          dataMap: <String, double>{'Yes': yes, 'No': no},
                           selectedValue: selectedValue,
                         )
                       : _TextField(
-                          placeholder: "Your comment",
+                          placeholder: "Your comment in 40 symbols",
                           onChanged: (val) {
                             comment = val;
                           },
@@ -143,7 +147,7 @@ class MyHomePageState extends State<MyHomePage> {
                                 padding: const EdgeInsets.all(12.0),
                                 child: Text("Yes, it is",
                                     style: TextStyle(
-                                        color: Color(0xFFDC5C5C),
+                                        color: red,
                                         fontWeight: FontWeight.w600))),
                             NeumorphicButton(
                                 margin: EdgeInsets.only(top: 20, left: 10),
@@ -159,7 +163,7 @@ class MyHomePageState extends State<MyHomePage> {
                                 padding: const EdgeInsets.all(12.0),
                                 child: Text("No, it's not",
                                     style: TextStyle(
-                                        color: Color(0xFF5AB359),
+                                        color: green,
                                         fontWeight: FontWeight.w600))),
                           ],
                         ),
@@ -172,10 +176,17 @@ class MyHomePageState extends State<MyHomePage> {
 
   void _addResponse(bool value) async {
     final id = await _getUniqueId();
-    Response val = Response(id, value, comment);
+    final timestamp = new DateTime.now().millisecondsSinceEpoch;
+    final len = comment.trim().length;
+    if (len > 40) {
+      return;
+    }
+    Response val = Response(id, value, comment, timestamp);
     repository.addResponse(val);
     setState(() {
       comment = '';
+      yes = yes + (value ? 1 : 0);
+      no = no + (value ? 0 : 1);
     });
   }
 
@@ -193,7 +204,7 @@ class MyHomePageState extends State<MyHomePage> {
 
   Widget _buildList(BuildContext context, List<DocumentSnapshot> snapshot) {
     return ListView(
-      padding: const EdgeInsets.only(top: 0.0),
+      padding: const EdgeInsets.only(top: 5.0),
       children: snapshot.map((data) => _buildListItem(context, data)).toList(),
     );
   }
@@ -204,31 +215,39 @@ class MyHomePageState extends State<MyHomePage> {
       return Container();
     }
     return Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: InkWell(
+        padding: EdgeInsets.symmetric(vertical: 5, horizontal: 20),
+        child: Neumorphic(
+          boxShape: NeumorphicBoxShape.roundRect(BorderRadius.all(Radius.circular(10.0))),
+          style: NeumorphicStyle(
+              depth: NeumorphicTheme.depth(context) / 3.0),
+          padding: const EdgeInsets.only(left: 15.0, right: 0.0),
           child: Row(
             children: <Widget>[
               Expanded(
                   child: Text(res.comment == null ? "" : res.comment,
                       style: TextStyle(
-                          fontSize: 18.0, fontWeight: FontWeight.w500))),
+                          fontSize: 16.0,
+                          fontWeight: FontWeight.w500,
+                          color: textColor))),
               _getResponseIcon(res.value),
             ],
           ),
-          highlightColor: Colors.green,
-          splashColor: Colors.blue,
+          // highlightColor: Colors.green,
+          // splashColor: Colors.blue,
         ));
   }
 
   Widget _getResponseIcon(bool value) {
     if (value) {
       return IconButton(
-        icon: Icon(Icons.pets),
+        icon: Icon(Icons.thumb_down),
+        color: red,
         onPressed: () {},
       );
     } else {
       return IconButton(
-        icon: Icon(Icons.pets),
+        icon: Icon(Icons.thumb_up),
+        color: green,
         onPressed: () {},
       );
     }

@@ -1,12 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:pie_chart/pie_chart.dart';
 
+import 'constants.dart';
+
 class NeumorphicPie extends StatelessWidget {
   Map<String, double> dataMap;
-  final List<Color> colorList = [
-    Color(0xFFF06262),
-    Color(0xFF5AD959),
-  ];
+  final List<Color> colorList = [red, green];
   bool selectedValue;
 
   NeumorphicPie({Key key, this.dataMap, this.selectedValue = false})
@@ -34,20 +33,48 @@ class NeumorphicPie extends StatelessWidget {
         margin: const EdgeInsets.only(top: 10),
         height: MediaQuery.of(context).size.width / 2.0,
         width: MediaQuery.of(context).size.width / 2.0,
-        child: Center(
-          child: selectedValue
-              ? Text("I think yes",
-                  style: TextStyle(
-                      color: Color(0xFFDC5C5C),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: <Widget>[
+            selectedValue
+                ? Text("I think yes",
+                    style: TextStyle(
+                      color: red,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
                     ))
-              : Text("I think no",
-                  style: TextStyle(
-                      color: Color(0xFF5AB359),
+                : Text("I think no",
+                    style: TextStyle(
+                      color: green,
                       fontWeight: FontWeight.w600,
                       fontSize: 16,
-                    ))
+                    )),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: <Widget>[
+                Text(dataMap['Yes'].toInt().toString(),
+                    style: TextStyle(
+                      color: red,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    )),
+                Text("/",
+                    style: TextStyle(
+                      color: textColor,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    )),
+                Text(dataMap['No'].toInt().toString(),
+                    style: TextStyle(
+                      color: green,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 16,
+                    )),
+              ],
+            ),
+          ],
         ),
       )),
     ]);

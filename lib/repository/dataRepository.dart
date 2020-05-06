@@ -7,17 +7,20 @@ class DataRepository {
   final CollectionReference counters =
       Firestore.instance.collection('counters');
 
-  Stream<QuerySnapshot> getStream() =>
-      collection.where('comment', isGreaterThan: '').limit(50).snapshots();
+  Stream<QuerySnapshot> getStream() => collection
+      .where('comment', isGreaterThan: '')
+      .limit(50)
+      .snapshots();
 
-  Future<DocumentSnapshot> counts() =>
-      Firestore.instance.document('counters/counter').get();
+  Stream<DocumentSnapshot> counts() =>
+      Firestore.instance.document('counters/counter').snapshots();
 
-  getMyResponse(id) =>
+  Stream<QuerySnapshot> getMyResponse(id) =>
       collection.where('uniqueId', isEqualTo: id).limit(1).snapshots();
 
   Future<DocumentReference> addResponse(Response res) async {
-    final DocumentReference ref = Firestore.instance.document('counters/counter');
+    final DocumentReference ref =
+        Firestore.instance.document('counters/counter');
     await Firestore.instance.runTransaction((Transaction tx) async {
       await collection.add(res.toJson());
       DocumentSnapshot sp = await tx.get(ref);
